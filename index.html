@@ -24,12 +24,17 @@
     //   myWorker.postMessage('test-worker')
     // })
 
-    const ws = new WebSocket('wss://api.exerflysport.com', 'json')
+    const ws = new WebSocket('wss://api.exerflysport.com')
+    ws.binaryType = 'arraybuffer'
     ws.addEventListener('open', () => {
       elm.innerHTML = "Connected to WebSocket"
     })
     ws.addEventListener('message', (e) => {
-      elm.innerHTML = e.data
+      const buf = e.data
+      const angle = new Int16Array(buf, 0, 1)
+      const rpm = new Uint16Array(buf, 2, 1)
+      const time = new Uint32Array(buf, 4, 1)
+      elm.innerHTML = `Angle: ${angle[0]} RPM: ${rpm[0]} Time: ${time[0]}`
       // console.log('Received:', e.data)
     })
   </script>

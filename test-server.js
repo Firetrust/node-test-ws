@@ -1,9 +1,12 @@
 const crypto = require('crypto')
 const http = require('http')
 
-const state = { count: 0 }
+const state = { count: 0, time: 0 }
 
 const clients = []
+
+const HEADER_SIZE = 2
+const PAYLOAD_SIZE = 8
 
 const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -54,16 +57,6 @@ server.on('upgrade', function (req, socket) {
     `Sec-WebSocket-Accept: ${hash}`
   ]
 
-  // When initilising an upgrade to a WebSocket connection, the client includes
-  // a Sec-WebSocket-Protocol header with a comma-delimited string of protocols.
-  const protocol = req.headers['sec-websocket-protocol']
-  // If provided, we'll need to parse the header value.
-  const protocols = !protocol ? [] : protocol.split(',').map(s => s.trim())
-  // We'll just see if JSON is an option, and if so include it in the response.
-  if (protocols.includes('json')) {
-    responseHeaders.push('Sec-WebSocket-Protocol: json')
-  }
-
   // Now we can complete the handshake, appending two crlf as per standard HTTP
   // response headers so that the browser recognises the end of the response.
   socket.write(responseHeaders.join('\r\n') + '\r\n\r\n')
@@ -89,26 +82,15 @@ server.on('upgrade', function (req, socket) {
   })
 })
 
-function response (data) {
-  // Convert the JSON object to a string and copy it into a buffer.
-  const json = JSON.stringify(data)
-  const jsonByteLength = Buffer.byteLength(json)
-  // Note: We're not supporting > 65535 byte payloads for exerfly.
-  const lengthByteCount = jsonByteLength < 126 ? 0 : 2
-  const payloadLength = lengthByteCount === 0 ? jsonByteLength : 126
-  const buf = Buffer.alloc(2 + lengthByteCount + jsonByteLength)
-  // Write the first byte using opcode `1`.
-  // This indicates message frame payload contains text data.
-  buf.writeUInt8(0b10000001, 0)
-  buf.writeUInt8(payloadLength, 1)
-  // Write the length of the JSON payload to the second byte.
-  let payloadOffset = 2
-  if (lengthByteCount > 0) {
-    buf.writeUInt16BE(jsonByteLength, 2)
-    payloadOffset += lengthByteCount
-  }
-  // Write the JSON string to the buffer.
-  buf.write(json, payloadOffset)
+function response (angle, rpm, time) {
+  const buf = Buffer.alloc(HEADER_SIZE + PAYLOAD_SIZE)
+  // Write the header, fin `1` indiciates final fragment opcode `2` indicates binary data.
+  buf.writeUInt8(0b10000010, 0)
+  buf.writeUInt8(PAYLOAD_SIZE, 1)
+  // Write the remaining buffer.
+  buf.writeInt16LE(angle, 2)  // angle
+  buf.writeUInt16LE(rpm, 4) // rpm
+  buf.writeUInt32LE(time, 6) // time
   return buf
 }
 
@@ -119,9 +101,12 @@ server.listen(3000, 'localhost', () => {
     if (!clients.length) {
       return
     }
-    state.count++
+    const angle = Math.floor(Math.random() * 360) + -360
+    const rpm = Math.floor(Math.random() * 65535)
+    state.time++
+    // console.log(`Angle: ${angle} RPM: ${rpm} Time: ${state.time}`)
     clients.forEach((socket) => {
-      socket.write(response(state))
+      socket.write(response(angle, rpm, state.time))
     })
   }, 1000)
 })
