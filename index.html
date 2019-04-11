@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+    <title>test-worker</title>
+  </head>
+  <body>
+    <div id="worker"></div>
+    <!-- <button id="btn">Test Worker</button> -->
+  </body>
+  <script>
+    const elm = document.getElementById('worker')
+    elm.innerHTML = "Connecting..."
+
+    // const myWorker = new Worker('worker.js')
+    // myWorker.onmessage = (e) => {
+    //   elm.innerHTML = e.data
+    // }
+
+    // const btn = document.getElementById('btn')
+    // btn.addEventListener('click', () => {
+    //   myWorker.postMessage('test-worker')
+    // })
+
+    const ws = new WebSocket('wss://api.exerflysport.com', 'json')
+    ws.addEventListener('open', () => {
+      elm.innerHTML = "Connected to WebSocket"
+    })
+    ws.addEventListener('message', (e) => {
+      elm.innerHTML = e.data
+      // console.log('Received:', e.data)
+    })
+  </script>
+</html>
